@@ -729,18 +729,52 @@ async function startQrCamera() {
     return;
   }
 
+  // Intentar soportar carnet (normalmente PDF417) y QR
   qrDetector = new BarcodeDetector({
-  formats: ["qr_code", "pdf417", "data_matrix", "aztec", "code_128", "ean_13"]
-});
+    formats: ["qr_code", "pdf417", "data_matrix", "aztec", "code_128", "ean_13"]
+  });
 
   try {
+    // 1) Pedimos cámara trasera + resolución alta
     qrStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      },
       audio: false
     });
 
     qrVideo.srcObject = qrStream;
 
+    // 2) Forzar enfoque continuo si el dispositivo lo permite
+    const track = qrStream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+
+    // Algunas cámaras permiten focusMode
+    const advanced = [];
+
+    if (caps.focusMode && Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
+      advanced.push({ focusMode: "continuous" });
+    }
+
+    // Algunas permiten "zoom" (sirve para carnet PDF417)
+    if (caps.zoom) {
+      const z = Math.min(caps.zoom.max ?? 1, 2); // zoom suave (2x)
+      if (z > 1) advanced.push({ zoom: z });
+    }
+
+    if (advanced.length && track.applyConstraints) {
+      await track.applyConstraints({ advanced });
+    }
+
+    // 3) Esperar a que el video “arranque” bien
+    await new Promise((resolve) => {
+      if (qrVideo.readyState >= 2) return resolve();
+      qrVideo.onloadedmetadata = () => resolve();
+    });
+
+    // 4) Loop de detección
     const tick = async () => {
       if (!qrDetector || !qrVideo || qrVideo.readyState < 2) {
         qrLoopTimer = requestAnimationFrame(tick);
@@ -758,11 +792,9 @@ async function startQrCamera() {
           const rut = extractRutFromScan(raw);
           if (rut) {
             await selectPersonByRut(rut);
-            setMessage(`Carnet por QR: ${rut}`, "ok");
+            setMessage(`Carnet leído por cámara: ${rut}`, "ok");
             closeQrModal();
             return;
-          } else {
-            setMessage("Leí el QR, pero no pude extraer RUT. Pégame el texto del QR.", "bad");
           }
         }
       } catch {
@@ -773,21 +805,10 @@ async function startQrCamera() {
     };
 
     qrLoopTimer = requestAnimationFrame(tick);
-    qrMsg.textContent = "Cámara activa. Apunta al QR…";
-  } catch {
-    qrMsg.textContent = "No se pudo iniciar la cámara. Revisa permisos del navegador.";
-  }
-}
-
-function stopQrCamera() {
-  if (qrLoopTimer) cancelAnimationFrame(qrLoopTimer);
-  qrLoopTimer = null;
-
-  if (qrVideo) qrVideo.srcObject = null;
-
-  if (qrStream) {
-    qrStream.getTracks().forEach(t => t.stop());
-    qrStream = null;
+    qrMsg.textContent = "Cámara activa. Mantén el carnet firme y con buena luz…";
+  } catch (e) {
+    console.error("Camera error:", e);
+    qrMsg.textContent = `No se pudo iniciar la cámara: ${e?.name || "Error"} ${e?.message || ""}`;
   }
 }
 
@@ -803,4 +824,5 @@ renderResults([]);
 refreshAll().catch(() => setMessage("No conecta con el servidor. ¿Lo iniciaste en /server?", "bad"));
 
 scanInput.focus();
+
 
