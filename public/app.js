@@ -729,7 +729,9 @@ async function startQrCamera() {
     return;
   }
 
-  qrDetector = new BarcodeDetector({ formats: ["qr_code"] });
+  qrDetector = new BarcodeDetector({
+  formats: ["qr_code", "pdf417", "data_matrix", "aztec", "code_128", "ean_13"]
+});
 
   try {
     qrStream = await navigator.mediaDevices.getUserMedia({
@@ -748,8 +750,10 @@ async function startQrCamera() {
       try {
         const codes = await qrDetector.detect(qrVideo);
         if (codes && codes.length) {
-          const raw = codes[0].rawValue || "";
-          qrMsg.textContent = `QR leído: ${raw}`;
+          const c = codes[0].;
+          const raw = c.rawValue || "";
+          const fmt = c.format || "desconocido";
+          qrMsg.textContent = `Leído (${fmt}): ${raw}`;
 
           const rut = extractRutFromScan(raw);
           if (rut) {
@@ -797,4 +801,5 @@ setPersonBox();
 setRadioBox();
 renderResults([]);
 refreshAll().catch(() => setMessage("No conecta con el servidor. ¿Lo iniciaste en /server?", "bad"));
+
 scanInput.focus();
