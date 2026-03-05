@@ -750,17 +750,14 @@ async function startQrCamera() {
     // 2) Forzar enfoque continuo si el dispositivo lo permite
     const track = qrStream.getVideoTracks()[0];
     const caps = track.getCapabilities ? track.getCapabilities() : {};
-
-    // Algunas cámaras permiten focusMode
     const advanced = [];
 
     if (caps.focusMode && Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
       advanced.push({ focusMode: "continuous" });
     }
 
-    // Algunas permiten "zoom" (sirve para carnet PDF417)
     if (caps.zoom) {
-      const z = Math.min(caps.zoom.max ?? 1, 2); // zoom suave (2x)
+      const z = Math.min(caps.zoom.max ?? 1, 2);
       if (z > 1) advanced.push({ zoom: z });
     }
 
@@ -768,13 +765,11 @@ async function startQrCamera() {
       await track.applyConstraints({ advanced });
     }
 
-    // 3) Esperar a que el video “arranque” bien
     await new Promise((resolve) => {
       if (qrVideo.readyState >= 2) return resolve();
       qrVideo.onloadedmetadata = () => resolve();
     });
 
-    // 4) Loop de detección
     const tick = async () => {
       if (!qrDetector || !qrVideo || qrVideo.readyState < 2) {
         qrLoopTimer = requestAnimationFrame(tick);
@@ -812,6 +807,21 @@ async function startQrCamera() {
   }
 }
 
+// ✅ FIX: esta función faltaba y causaba el error en consola
+function stopQrCamera() {
+  if (qrLoopTimer) cancelAnimationFrame(qrLoopTimer);
+  qrLoopTimer = null;
+
+  if (qrVideo) qrVideo.srcObject = null;
+
+  if (qrStream) {
+    qrStream.getTracks().forEach(track => track.stop());
+    qrStream = null;
+  }
+
+  if (qrMsg) qrMsg.textContent = "Cámara detenida.";
+}
+
 btnScanQr?.addEventListener("click", openQrModal);
 btnQrClose?.addEventListener("click", closeQrModal);
 btnQrStart?.addEventListener("click", startQrCamera);
@@ -822,7 +832,4 @@ setPersonBox();
 setRadioBox();
 renderResults([]);
 refreshAll().catch(() => setMessage("No conecta con el servidor. ¿Lo iniciaste en /server?", "bad"));
-
 scanInput.focus();
-
-
