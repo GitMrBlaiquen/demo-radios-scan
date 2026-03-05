@@ -750,7 +750,7 @@ async function startQrCamera() {
       try {
         const codes = await qrDetector.detect(qrVideo);
         if (codes && codes.length) {
-          const c = codes[0].;
+          const c = codes[0];
           const raw = c.rawValue || "";
           const fmt = c.format || "desconocido";
           qrMsg.textContent = `Leído (${fmt}): ${raw}`;
@@ -803,3 +803,4 @@ renderResults([]);
 refreshAll().catch(() => setMessage("No conecta con el servidor. ¿Lo iniciaste en /server?", "bad"));
 
 scanInput.focus();
+
