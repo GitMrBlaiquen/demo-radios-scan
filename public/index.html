@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo Radios - Escáner</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="container">
+    <div class="row" style="justify-content:space-between; align-items:center; gap:12px;">
+      <div>
+        <h1 style="margin:0;">Demo: Asignación de Radios por Escaneo</h1>
+        <p class="muted" style="margin:8px 0 0;">
+          Flujo: (1) Carnet → (2) Radio. O usa “Inventario” para cargar radios sin carnet.
+        </p>
+      </div>
+
+      <button id="btnToggleTheme" class="secondary" title="Cambiar tema">🌙/☀️ Tema</button>
+    </div>
+  </header>
+
+  <main class="container grid">
+    <section class="card">
+      <h2>1) Persona (Carnet)</h2>
+
+      <div class="row">
+        <button id="btnScanPerson">⌁ Modo Carnet</button>
+        <button id="btnScanQr" class="secondary">📷 Escanear QR (Carnet)</button>
+        <button class="secondary" id="btnManualPerson">⌨️ Crear/Editar persona</button>
+      </div>
+
+      <div class="scanLine">
+        <input id="scanInput" placeholder="Escanea aquí (carnet o radio)..." autocomplete="off" />
+        <span id="scanMode" class="pill">Modo: -</span>
+      </div>
+
+      <div class="selected">
+        <div class="label">Persona seleccionada</div>
+        <div id="personBox" class="box muted">Ninguna</div>
+      </div>
+
+      <div class="searchBox">
+        <div class="label">Buscar persona por RUT o nombre</div>
+        <div class="row">
+          <input id="searchPersonInput" placeholder="Ej: 21632444-7 o Francisco" autocomplete="off" />
+          <button id="btnSearchPerson" class="secondary">Buscar</button>
+          <button id="btnClearSearch" class="secondary">Limpiar</button>
+        </div>
+        <div id="searchResults" class="results muted">Sin resultados</div>
+      </div>
+
+      <details class="hint">
+        <summary>Administración</summary>
+        <div class="adminBox">
+          <div class="row">
+            <button id="btnDeleteSelectedPerson" class="danger">Eliminar persona seleccionada</button>
+          </div>
+          <div class="muted small">Eliminar persona también borra todas sus asignaciones.</div>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>2) Radios</h2>
+
+      <div class="row">
+        <button id="btnScanRadio">⌁ Modo Radio (Asignar)</button>
+        <button id="btnScanInventory" class="secondary">📦 Modo Inventario (solo agregar radios)</button>
+        <button class="secondary" id="btnManualRadio">⌨️ Ingresar radio manual</button>
+      </div>
+
+      <div class="selected">
+        <div class="label">Última radio escaneada</div>
+        <div id="radioBox" class="box muted">Ninguna</div>
+      </div>
+
+      <details class="hint">
+        <summary>Administración</summary>
+        <div class="adminBox">
+          <div class="label">Eliminar radio esperada (y desasignar si está asignada)</div>
+          <div class="row">
+            <input id="deleteRadioInput" placeholder="Código radio (ej: 001)" autocomplete="off" />
+            <button id="btnDeleteRadio" class="danger">Eliminar radio</button>
+          </div>
+        </div>
+      </details>
+
+      <div id="msg" class="msg"></div>
+    </section>
+
+    <section class="card">
+      <h2>Resumen</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">Esperadas</div><div id="sExpected" class="v">-</div></div>
+        <div class="stat"><div class="k">Asignadas</div><div id="sAssigned" class="v">-</div></div>
+        <div class="stat"><div class="k">Faltan</div><div id="sMissing" class="v">-</div></div>
+        <div class="stat"><div class="k">Personas</div><div id="sPeople" class="v">-</div></div>
+      </div>
+
+      <details class="hint">
+        <summary>Importar radios esperadas (1 por línea)</summary>
+        <textarea id="expectedText" rows="6" placeholder="001&#10;002&#10;003"></textarea>
+        <div class="row">
+          <button id="btnImportExpected" class="secondary">Importar</button>
+        </div>
+        <div id="importMsg" class="muted"></div>
+      </details>
+    </section>
+
+    <!-- Lista Radios esperadas -->
+    <section class="card wide">
+      <div class="tableHeader">
+        <h2>Radios esperadas</h2>
+
+        <div class="row">
+          <input id="expectedSearchInput" placeholder="Buscar radio (ej: 015)" autocomplete="off" />
+          <button id="btnClearExpectedSearch" class="secondary">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="muted small" id="expectedCount">Cargando…</div>
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="expectedBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <div class="tableHeader">
+        <h2>Asignaciones</h2>
+
+        <label class="toggle">
+          <input id="toggleFilterSelected" type="checkbox" />
+          <span>Mostrar solo radios de la persona seleccionada</span>
+        </label>
+      </div>
+
+      <div id="filterInfo" class="muted small"></div>
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Radio</th>
+              <th>RUT</th>
+              <th>Nombre</th>
+              <th>Fecha (hora local)</th>
+              <th>Acciones</th>
+              <th>Reasignar</th>
+            </tr>
+          </thead>
+          <tbody id="assignmentsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card wide">
+      <h2>Radios faltantes</h2>
+      <div id="missingList" class="chips muted">Cargando…</div>
+    </section>
+  </main>
+
+  <!-- Modal 3 opciones (radio ya asignada) -->
+  <div id="actionModal" class="modal hidden">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div class="modalTitle">Radio ya asignada</div>
+        <button id="btnModalClose" class="secondary">Cerrar</button>
+      </div>
+
+      <div id="modalText" class="modalText"></div>
+
+      <div class="row modalActions">
+        <button id="btnModalUnassign" class="danger">Eliminar asignación</button>
+        <button id="btnModalReassign">Reasignar a persona actual</button>
+        <button id="btnModalCancel" class="secondary">Cancelar</button>
+      </div>
+
+      <div class="muted small">“Reasignar a persona actual” usa la persona seleccionada arriba.</div>
+    </div>
+  </div>
+
+  <!-- ✅ Modal cámara QR -->
+  <div id="qrModal" class="modal hidden">
+    <div class="modalCard">
+      <div class="modalHead">
+        <div class="modalTitle">Escanear QR (Carnet)</div>
+        <button id="btnQrClose" class="secondary">Cerrar</button>
+      </div>
+
+      <div class="muted small" id="qrHint">
+        Apunta la cámara al QR. El navegador pedirá permiso para usar la cámara.
+      </div>
+
+      <video id="qrVideo" playsinline autoplay
+        style="width:100%; border-radius:14px; border:1px solid var(--border); margin-top:10px;"></video>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnQrStart">Iniciar cámara</button>
+        <button id="btnQrStop" class="secondary">Detener</button>
+      </div>
+
+      <div id="qrMsg" class="muted" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
